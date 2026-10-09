@@ -5,8 +5,13 @@ import sys
 
 VERDE = "\033[92m"
 VERDE_OSCURO = "\033[32m"
-#BLANCO = "\033[97m"
+BLANCO = "\033[97m"
 RESET = "\033[0m"
+LIMPIAR = "\033[2J"
+OCULTAR_CURSOR = "\033[?25l"
+MOSTRAR_CURSOR = "\033[?25h"
+MOVER = "\033[{fila};{columna}H"
+
 
 caracteres = "01アイウエオカキクケコサシスセソ ｴｶｷﾑﾕﾗｾﾈｽﾀﾇﾍ0123456789"
 mensajes = [
@@ -126,36 +131,84 @@ mensajes = [
     "Fin de la transmisión: la ciudad sigue vigilando"
 ]
 
-print("Entrando a la MATRIX...")
-time.sleep(3)
 
-contador = 0
+print("Entrando a la MATRIX...")
+time.sleep(1)
+
+print(OCULTAR_CURSOR + LIMPIAR)
 
 try:
     while True:
-        ancho = shutil.get_terminal_size().columns
-        ancho = max(1, ancho)
+        terminal = shutil.get_terminal_size()
+        ancho = max(1, terminal.columns)
+        alto = max(1, terminal.lines)
 
-        lluvia = "".join(
-            random.choice(caracteres)
-            for _ in range(ancho)
-        )
+        # Una columna por cada 2 caracteres de ancho
+        num_columnas = max(1, ancho // 2)
 
-        color = random.choice([VERDE, VERDE_OSCURO])
+        # Crea o reinicia las columnas si cambia el tamaño de la terminal
+        if 'columnas_matrix' not in globals() or len(columnas_matrix) != num_columnas:
+            columnas_matrix = []
 
-        print(color + lluvia + RESET)
+            for columna in range(num_columnas):
+                columnas_matrix.append({
+                    "x": columna * 2 + 1,
+                    "y": random.randint(-alto, alto),
+                    "velocidad": random.choice([1, 1, 2]),
+                    "largo": random.randint(5, 15),
+                })
 
-        contador += 1
+        # Limpia la pantalla en cada fotograma
+        print(LIMPIAR, end="")
 
-        if contador % 15 == 0:
+        for dato in columnas_matrix:
+            # Dibuja la estela
+            for i in range(dato["largo"]):
+                fila = dato["y"] - i
+
+                if 1 <= fila <= alto:
+                    caracter = random.choice(caracteres)
+
+                    if i == 0:
+                        color = BLANCO
+                    elif i < 3:
+                        color = VERDE
+                    else:
+                        color = VERDE_OSCURO
+
+                    print(
+                        MOVER.format(fila=fila, columna=dato["x"])
+                        + color + caracter + RESET,
+                        end="",
+                    )
+
+            # Avanza la columna hacia abajo
+            dato["y"] += dato["velocidad"]
+
+            # Si sale por abajo, reaparece arriba
+            if dato["y"] - dato["largo"] > alto:
+                dato["y"] = random.randint(-10, 0)
+                dato["velocidad"] = random.choice([1, 1, 2])
+                dato["largo"] = random.randint(5, 15)
+
+        # Mensaje ocasional
+        if random.random() < 0.005:
+            fila = random.randint(2, alto - 2)
+            columna = random.randint(2, max(2, ancho - 40))
             mensaje = random.choice(mensajes)
-            print(f"\n{VERDE}>>> {mensaje}{RESET}\n")
 
-        time.sleep(0.06)
+            print(
+                MOVER.format(fila=fila, columna=columna)
+                + VERDE + ">>> " + mensaje + RESET,
+                end="",
+            )
+
+        # Velocidad general de la animación
+        time.sleep(0.01)
 
 except KeyboardInterrupt:
-    print(f"\n{VERDE}MATRIX DESCONECTADA.")
+    print(MOSTRAR_CURSOR + RESET)
+    print("\nMATRIX DESCONECTADA.")
     print("Neo ha abandonado el servidor.")
-    print("Hasta la proxima, hacker.{RESET}")
+    print("Hasta la próxima, hacker.")
     sys.exit(0)
-
